@@ -1,0 +1,46 @@
+# Metric definitions and toil-score weighting.
+# Edit this file to retune scoring — no code changes, no redeploy of logic.
+
+version: 1
+
+# Defines "after hours" and "weekend" for page classification.
+# Evaluated in the paged person's local timezone (user -> team -> org fallback).
+working_hours:
+  start: "09:00"
+  end: "18:00"
+  weekend_days: [saturday, sunday]
+
+# A deploy counts as failed if a rollback or an incident on the same team
+# lands within this window after it.
+change_failure:
+  window_minutes: 60
+
+# Composite 0-100 toil score. Each component is normalised to 0-100 by linear
+# interpolation between `good` (0 toil) and `bad` (100 toil), clamped at both
+# ends, then combined by weight. Weights should sum to 1.0.
+toil_score:
+  components:
+    after_hours_page_rate:
+      weight: 0.30
+      good: 0.00   # no pages outside working hours
+      bad: 0.50    # half of all pages land after hours
+
+    change_failure_rate:
+      weight: 0.30
+      good: 0.00
+      bad: 0.30    # ~1 in 3 deploys needs a rollback
+
+    pages_per_person_per_week:
+      weight: 0.20
+      good: 1.0
+      bad: 15.0
+
+    weekend_page_rate:
+      weight: 0.10
+      good: 0.00
+      bad: 0.40
+
+    p95_resolution_minutes:
+      weight: 0.10
+      good: 15.0
+      bad: 240.0
